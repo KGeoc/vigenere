@@ -5,17 +5,12 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Predicate;
 
 public class VigenereCipher {
@@ -41,24 +36,6 @@ public class VigenereCipher {
 		@Override
 		public String toString() {
 			return "ChiTable [chiValue=" + chiValue + ", shift=" + shift + ", posit=" + posit + "]";
-		}
-	}
-
-	public class Dictionary {
-		private Set<String> wordsSet;
-
-		public Dictionary() throws IOException {
-
-			Path path = Paths.get("words.txt");
-			byte[] readBytes = Files.readAllBytes(path);
-			String wordListContents = new String(readBytes, "UTF-8");
-			String[] words = wordListContents.split("\n");
-			wordsSet = new HashSet<>();
-			Collections.addAll(wordsSet, words);
-		}
-
-		public boolean contains(String word) {
-			return wordsSet.contains(word);
 		}
 	}
 
@@ -104,14 +81,15 @@ public class VigenereCipher {
 	}
 
 	/**
-	 * contains number of occurences for individual letter at each position
+	 * contains number of occurrences for individual letter at each position in
+	 * relation to key length
 	 * 
 	 * @author qstr2
 	 */
 	private class IndivCount {
 
 		/**
-		 * contains specific letter and its specific occurences
+		 * contains letters and the amount of occurrences in relation to key length
 		 * 
 		 * @author qstr2
 		 */
@@ -312,15 +290,19 @@ public class VigenereCipher {
 
 		}
 
+		private int GCD(int x, int y) {
+			if (y == 0)
+				return x;
+			return GCD(y, x % y);
+		}
+
 		/**
 		 * returns key length by finding the most occurring phrases in the text block
+		 * 
 		 * @return key length
 		 */
 		public int kasiski() {
-
 			Map<Integer, Integer> map = new HashMap<>();
-
-			List<Integer> relations = new ArrayList<>();
 			for (Sequence temp : seq) {
 				if (temp.occurence >= 3) {
 					for (int i = 1; i < temp.distance.size(); i++) {
@@ -393,47 +375,6 @@ public class VigenereCipher {
 			return asdf.toString();
 		}
 
-		private int GCD(int x, int y) {
-			if (y == 0)
-				return x;
-			return GCD(y, x % y);
-		}
-
-	}
-
-	/**
-	 * the actual trie. contains bIsEnd to confirm if a word has been reached at
-	 * current position
-	 * 
-	 * @author qstr2
-	 *
-	 */
-	class TrieNode {
-		public TrieNode(char ch) {
-			value = ch;
-			children = new HashMap<>();
-			bIsEnd = false;
-		}
-
-		public HashMap<Character, TrieNode> getChildren() {
-			return children;
-		}
-
-		public char getValue() {
-			return value;
-		}
-
-		public void setIsEnd(boolean val) {
-			bIsEnd = val;
-		}
-
-		public boolean isEnd() {
-			return bIsEnd;
-		}
-
-		private char value;
-		private HashMap<Character, TrieNode> children;
-		private boolean bIsEnd;
 	}
 
 	/**
@@ -443,9 +384,91 @@ public class VigenereCipher {
 	 *
 	 */
 	public class Trie {
+		private TrieNode root;
+
 		// Constructor
 		public Trie() {
 			root = new TrieNode((char) 0);
+		}
+
+		/**
+		 * The main method that finds out all words attainable from input
+		 * 
+		 * @param input String that will be investigated to see if it starts with any
+		 *              words
+		 * @return stringInt containing how far down the string was traversed, and a
+		 *         list containing the location of each word formed
+		 */
+		public WordDepth getMatchingPrefix(String input) {
+			int length = input.length(); // Find length of the input string
+
+			List<Integer> wordLocs = new ArrayList<Integer>();
+			// Initialize reference to traverse through Trie
+			TrieNode crawl = root;
+			// Iterate through all characters of input string 'str' and traverse
+			// down the Trie
+			int level, prevMatch = 0;
+			for (level = 0; level < length; level++) {
+				// Find current character of str
+				char ch = input.charAt(level);
+
+				// HashMap of current Trie node to traverse down
+				HashMap<Character, TrieNode> child = crawl.getChildren();
+
+				// See if there is a Trie edge for the current character
+				if (child.containsKey(ch)) {
+					crawl = child.get(ch); // Update crawl to move down in Trie
+
+					// If this is end of a word, then update prevMatch
+					if (crawl.isEnd()) {
+						prevMatch = level + 1;
+						wordLocs.add(prevMatch);
+						///////////////// need to add location for words here
+					}
+				} else
+					break;
+			}
+
+			// If the last processed character did not match end of a word,
+			// return the previously matching prefix
+			return new WordDepth(level, wordLocs);
+
+		}
+
+		/**
+		 * The main method that finds out all words attainable from input
+		 * 
+		 * @param input String that will be investigated to see if it starts with any
+		 *              words
+		 * @return returns only the depth/length of word
+		 */
+		public int getMatchingPrefixInt(String input) {
+			int length = input.length(); // Find length of the input string
+
+			// Initialize reference to traverse through Trie
+			TrieNode crawl = root;
+
+			// Iterate through all characters of input string 'str' and traverse
+			// down the Trie
+			int level;
+			for (level = 0; level < length; level++) {
+				// Find current character of str
+				char ch = input.charAt(level);
+
+				// HashMap of current Trie node to traverse down
+				HashMap<Character, TrieNode> child = crawl.getChildren();
+
+				// See if there is a Trie edge for the current character
+				if (child.containsKey(ch)) {
+					crawl = child.get(ch); // Update crawl to move down in Trie
+
+				} else
+					break;
+			}
+
+			// If the last processed character did not match end of a word,
+			// return the previously matching prefix
+			return level;
 		}
 
 		/**
@@ -480,133 +503,119 @@ public class VigenereCipher {
 
 			crawl.setIsEnd(true);
 		}
-
-		/**
-		 * The main method that finds out all words attainable from input
-		 * 
-		 * @param input String that will be investigated to see if it starts with any
-		 *              words
-		 * @return stringInt containing how far down the string was traversed, and a
-		 *         list containing the location of each word formed
-		 */
-		public WordDepth getMatchingPrefix(String input) {
-			String result = ""; // Initialize resultant string
-			int length = input.length(); // Find length of the input string
-
-			List<Integer> wordLocs = new ArrayList<Integer>();
-			// Initialize reference to traverse through Trie
-			TrieNode crawl = root;
-			// Iterate through all characters of input string 'str' and traverse
-			// down the Trie
-			int level, prevMatch = 0;
-			for (level = 0; level < length; level++) {
-				// Find current character of str
-				char ch = input.charAt(level);
-
-				// HashMap of current Trie node to traverse down
-				HashMap<Character, TrieNode> child = crawl.getChildren();
-
-				// See if there is a Trie edge for the current character
-				if (child.containsKey(ch)) {
-					result += ch; // Update result
-					crawl = child.get(ch); // Update crawl to move down in Trie
-
-					// If this is end of a word, then update prevMatch
-					if (crawl.isEnd()) {
-						prevMatch = level + 1;
-						wordLocs.add(prevMatch);
-						///////////////// need to add location for words here
-					}
-				} else
-					break;
-			}
-
-			// If the last processed character did not match end of a word,
-			// return the previously matching prefix
-			return new WordDepth(level, wordLocs);
-
-		}
-
-		/**
-		 * The main method that finds out all words attainable from input
-		 * 
-		 * @param input String that will be investigated to see if it starts with any
-		 *              words
-		 * @return returns only the depth/length of word
-		 */
-		public int getMatchingPrefixInt(String input) {
-			String result = ""; // Initialize resultant string
-			int length = input.length(); // Find length of the input string
-
-			// Initialize reference to traverse through Trie
-			TrieNode crawl = root;
-
-			// Iterate through all characters of input string 'str' and traverse
-			// down the Trie
-			int level, prevMatch = 0;
-			for (level = 0; level < length; level++) {
-				// Find current character of str
-				char ch = input.charAt(level);
-
-				// HashMap of current Trie node to traverse down
-				HashMap<Character, TrieNode> child = crawl.getChildren();
-
-				// See if there is a Trie edge for the current character
-				if (child.containsKey(ch)) {
-					result += ch; // Update result
-					crawl = child.get(ch); // Update crawl to move down in Trie
-
-					// If this is end of a word, then update prevMatch
-					if (crawl.isEnd())
-						prevMatch = level + 1;
-				} else
-					break;
-			}
-
-			// If the last processed character did not match end of a word,
-			// return the previously matching prefix
-			return level;
-		}
-
-		private TrieNode root;
 	}
-
-	// Testing class
-	public Trie dict = new Trie();
 
 	/**
-	 * inserts each word into the trie
+	 * the actual trie. contains bIsEnd to confirm if a word has been reached at
+	 * current position
 	 * 
-	 * @param fileName Stringname for word dictionary
+	 * @author qstr2
+	 *
 	 */
-	public void implementTrie(String fileName) {
+	class TrieNode {
+		private char value;
 
-		File file = new File(fileName);
-		String line = null;
-		try {
-			// FileReader reads text files in the default encoding.
-			FileReader fileReader = new FileReader(file);
+		private HashMap<Character, TrieNode> children;
 
-			// Always wrap FileReader in BufferedReader.
-			BufferedReader bufferedReader = new BufferedReader(fileReader);
+		private boolean bIsEnd;
 
-			while ((line = bufferedReader.readLine()) != null) {
-				// reads each line and analyzes use of each letter
-				dict.insert(line);
-			}
-			// Always close files.
-			bufferedReader.close();
-		} catch (FileNotFoundException ex) {
-			System.out.println("Unable to open file '" + file + "'");
-			return;
-		} catch (IOException ex) {
-			System.out.println("Error reading file '" + file + "'");
-			return;
+		public TrieNode(char ch) {
+			value = ch;
+			children = new HashMap<>();
+			bIsEnd = false;
+		}
+
+		public HashMap<Character, TrieNode> getChildren() {
+			return children;
+		}
+
+		public char getValue() {
+			return value;
+		}
+
+		public boolean isEnd() {
+			return bIsEnd;
+		}
+
+		public void setIsEnd(boolean val) {
+			bIsEnd = val;
+		}
+	}
+
+	/**
+	 * wordDepth is composed of the depth of a text that was used
+	 * 
+	 * @author qstr2
+	 *
+	 */
+	private class WordDepth {
+
+		public int depth;
+		public List<Integer> wordLocs = new ArrayList<Integer>();
+
+		WordDepth(int depth, List<Integer> amtWords) {
+			this.depth = depth;
+			wordLocs = amtWords;
+		}
+
+		void removeOldest() {
+			wordLocs.remove(0);
 		}
 
 	}
 
-	private StringBuffer cipheredText = new StringBuffer();;
+	public static void main(String[] args) {
+
+		VigenereCipher vigen = new VigenereCipher();
+		int key = 10;
+		//// 74 is martinhairerhasmadeabreakthrough
+		// 87 is ohwhyshouldibe
+		/// 40 is everyyearthedirector NZQARIKQIWH
+		/// 42 is asforthequestionofdifficulty ZUEZNH
+
+		if (vigen.readAndStore("vigenere/vigenere87.txt") == false)
+			return;
+		System.out.println();
+		vigen.implementTrie("vigenere/words.txt");
+		vigen.implementTrie("vigenere/names.txt");
+		vigen.checkOccurences(7);
+		key = vigen.kasiski(2);
+		System.out.println(key);
+		vigen.setKeyLength(key);
+		vigen.removeSpaces();
+		vigen.Store();
+
+		// System.out.println(vigen.showFrequency());
+		System.out.println(vigen.findIndexOfCoincidence());
+		// System.out.println(vigen.returnOccurences());
+
+		vigen.showDistances(3);
+		vigen.filter();
+
+		vigen.indivOccurence(key);
+		vigen.chiSquare();
+
+		long startTime = System.currentTimeMillis();
+		vigen.preRecursive();
+		long endTime = System.currentTimeMillis();
+		System.out.println("Total execution time: " + (endTime - startTime) + "ms");
+		// vigen.recursiveThing(0);
+
+		/*
+		 * 14 6 6 4 10 17 9 22 16 18
+		 */
+
+		System.out.println("Key length " + key);
+		System.out.println(vigen.decrypt());
+
+		//// Martin Hairer has made a breakthrough
+		//// correct key is NFFDJQIVPR
+
+	}
+
+	private Trie dict = new Trie();;
+
+	private StringBuffer cipheredText = new StringBuffer();
 
 	private String cipherBet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toLowerCase();
 
@@ -631,25 +640,57 @@ public class VigenereCipher {
 	private List<Integer> moveCharX = new ArrayList<>();
 
 	private List<IndivCount> indivChars = new ArrayList<>();
-
-	private Dictionary wordList;
-
 	private List<ChiTablePos> chiTableIndiv = new ArrayList<>();
+
 	private List<ChiTable> chiTableFull = new ArrayList<>();
 
 	private StringBuffer abridgedText = new StringBuffer();
 
-	public List<Integer> recursiveList = new ArrayList<Integer>();
+	private List<Integer> recursiveList = new ArrayList<Integer>();
+
+	private StringBuilder translated = new StringBuilder();
+
+	/**
+	 * length of text to decrypt to verify if correct text
+	 */
+	private int testLength = 40;
+
+	/**
+	 * how far down until a word or possible word is found
+	 */
+	private int relevantIndex = 10;
+
+	String originalText;
+	/**
+	 * max depth traversed by recursiveThing
+	 */
+	private int maxDepth = 0;
+	/**
+	 * current depth traversed by recursiveThing
+	 */
+	private int currentDepth = 0;
+
+	/**
+	 * How many values to check under each index
+	 */
+	private int checkDepth = 8;
 
 	public VigenereCipher() {
-
-		loadDictionary();
 
 	}
 
 	public VigenereCipher(String fileName) {
-		loadDictionary();
 		readAndStore(fileName);
+	}
+
+	/**
+	 * makes maxdepth become current depth if larger. should probably be rewritten
+	 * as inline
+	 */
+	private void checkDepth() {
+		if (currentDepth > maxDepth) {
+			maxDepth = currentDepth;
+		}
 	}
 
 	/**
@@ -819,8 +860,62 @@ public class VigenereCipher {
 		return currentTry;
 	}
 
+	public String fullDecrypt() {
+		translated.setLength(0);
+		translated.append(cipheredText);
+		for (int i = 0; i < translated.length(); i++) {
+			if (translated.charAt(i) == ' ')
+				continue;
+
+			translated.setCharAt(i, (char) (translated.charAt(i) - moveCharX.get(i % keyLength)));
+			if (translated.charAt(i) < 65)
+				translated.setCharAt(i, (char) (translated.charAt(i) + 26));
+		}
+		// System.out.println(charArray);
+		// cipheredText = String.valueOf(charArray);
+
+		// System.out.println(findIndexOfCoincidence());
+		return translated.toString();
+	}
+
+	private String getCharForNumber(int i) {
+		return i >= 0 && i < 26 ? String.valueOf((char) (i + 65)) : null;
+	}
+
 	public int getKeyLength() {
 		return keyLength;
+	}
+
+	/**
+	 * inserts words from fileName into dictionary each word is on a different line
+	 * 
+	 * @param fileName String name for word dictionary
+	 */
+	public void implementTrie(String fileName) {
+
+		File file = new File(fileName);
+		String line = null;
+		try {
+			// FileReader reads text files in the default encoding.
+			FileReader fileReader = new FileReader(file);
+
+			// Always wrap FileReader in BufferedReader.
+			BufferedReader bufferedReader = new BufferedReader(fileReader);
+
+			while ((line = bufferedReader.readLine()) != null) {
+				// reads each line and analyzes use of each letter
+				dict.insert(line);
+			}
+			// Always close files.
+			bufferedReader.close();
+		} catch (FileNotFoundException ex) {
+			System.out.println("Unable to open file '" + file + "'");
+			return;
+		} catch (IOException ex) {
+			System.out.println("Error reading file '" + file + "'");
+			return;
+		}
+
 	}
 
 	/**
@@ -877,20 +972,54 @@ public class VigenereCipher {
 
 	}
 
-/**
- * determines key length using kasiski analysis
- * @param pos position for where kasiski analysis is obtaining results
- * @return key length
- */
+	/**
+	 * determines key length using kasiski analysis
+	 * 
+	 * @param pos position for where kasiski analysis is obtaining results
+	 * @return key length
+	 */
 	public int kasiski(int pos) {
 		return occurenceList.get(pos).kasiski();
 	}
 
 	/**
-	 * calculates levenshtein disatance
+	 * checks text for how many words are arranged in a series recursively
 	 * 
-	 * @param lhs
-	 * @param rhs
+	 * @param relevantIndex how far along valid words are made. Indicates where next
+	 *                      check for valid words will be
+	 */
+	private void launchRecursion(int relevantIndex) {
+
+		WordDepth newASDF = dict.getMatchingPrefix(originalText.substring(relevantIndex));
+		if (newASDF.wordLocs.isEmpty()) {
+			currentDepth += newASDF.depth;
+			checkDepth();
+			currentDepth -= newASDF.depth;
+			return;
+		}
+
+		do {
+			currentDepth += newASDF.depth;
+			checkDepth();
+			launchRecursion(relevantIndex + newASDF.wordLocs.get(0));
+			currentDepth -= newASDF.depth;
+
+			newASDF.removeOldest();
+			if (relevantIndex > 20) {
+				// Need to get to the point where whole sentence is not passed but only the
+				// correct key
+				System.out.println(fullDecrypt());
+			}
+		} while (!newASDF.wordLocs.isEmpty());
+
+		return;
+	}
+
+	/**
+	 * calculates levenshtein disatance the difference between two characters
+	 * 
+	 * @param lhs left handed string
+	 * @param rhs right handed string
 	 * @return
 	 */
 	public int levenshteinDistance(CharSequence lhs, CharSequence rhs) {
@@ -935,28 +1064,6 @@ public class VigenereCipher {
 		// the distance is the cost for transforming all letters in both strings
 		return cost[len0 - 1];
 	}
-	//// TODO need to make a program that finds a word that is the largest
-	//// unique word.
-	/// should have a maximum length of probably 7 need to see if a word of
-	//// length+1 is close enough
-	/// need to find what values are normal for if there is addition of word,
-	//// how this differs to same size
-	/// 2 words of the same size would have 2 substitutions. would want to avoid
-	//// that.
-
-	/// TODO implement a trie
-
-	/// TODO change from String to StringBuilder
-	public void loadDictionary() {
-		try {
-			wordList = new Dictionary();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-
-	private StringBuilder translated = new StringBuilder();
-	private int testLength = 40;
 
 	public String miniDecrypt() {
 		translated.setLength(0);
@@ -968,26 +1075,6 @@ public class VigenereCipher {
 			translated.setCharAt(i, (char) (translated.charAt(i) - moveCharX.get(i % keyLength)));
 			if (translated.charAt(i) < 65)
 				translated.setCharAt(i, (char) (translated.charAt(i) + 26));
-			// TODO fix this?
-		}
-		// System.out.println(charArray);
-		// cipheredText = String.valueOf(charArray);
-
-		// System.out.println(findIndexOfCoincidence());
-		return translated.toString();
-	}
-
-	public String fullDecrypt() {
-		translated.setLength(0);
-		translated.append(cipheredText);
-		for (int i = 0; i < translated.length(); i++) {
-			if (translated.charAt(i) == ' ')
-				continue;
-
-			translated.setCharAt(i, (char) (translated.charAt(i) - moveCharX.get(i % keyLength)));
-			if (translated.charAt(i) < 65)
-				translated.setCharAt(i, (char) (translated.charAt(i) + 26));
-			// TODO fix this?
 		}
 		// System.out.println(charArray);
 		// cipheredText = String.valueOf(charArray);
@@ -1013,6 +1100,16 @@ public class VigenereCipher {
 		}
 
 		return true;
+	}
+
+	/**
+	 * starts up the recursive sequence to check text for all possibilities
+	 */
+	public void preRecursive() {
+		for (int i = 0; i < keyLength; i++) {
+			moveCharX.add(indivChars.get(i).getDistfromE(0));
+		}
+		recursiveThing(0);
 	}
 
 	/**
@@ -1059,87 +1156,12 @@ public class VigenereCipher {
 	}
 
 	/**
-	 * how far down until a word or possible word is found
-	 */
-	public int relevantIndex = 10;
-
-	public void preRecursive() {
-		for (int i = 0; i < keyLength; i++) {
-			moveCharX.add(indivChars.get(i).getDistfromE(0));
-		}
-		recursiveThing(0);
-	}
-
-	/**
-	 * wordDepth is composed of the depth of a text that was used
+	 * checks the current decryption and after verifying it through launchRecursion
+	 * will see if it warrants further testing or not
 	 * 
-	 * @author qstr2
-	 *
+	 * @param index passes down the current character location being manipulated
 	 */
-	private class WordDepth {
-
-		public int depth;
-		public List<Integer> wordLocs = new ArrayList<Integer>();
-
-		WordDepth() {
-		}
-
-		WordDepth(int depth, List<Integer> amtWords) {
-			this.depth = depth;
-			wordLocs = amtWords;
-		}
-
-		void removeOldest() {
-			wordLocs.remove(0);
-		}
-
-	}
-
-	private WordDepth asdf = new WordDepth();
-
-	String originalText;
-
-	int maxDepth = 0;
-	int currentDepth = 0;
-
-	/**
-	 * makes maxdepth become current depth if larger. should probably be rewritten
-	 * as inline
-	 */
-	private void checkDepth() {
-		if (currentDepth > maxDepth) {
-			maxDepth = currentDepth;
-		}
-	}
-
-	private void launchRecursion(int relevantIndex) {
-
-		WordDepth newASDF = dict.getMatchingPrefix(originalText.substring(relevantIndex));
-		if (newASDF.wordLocs.isEmpty()) {
-			currentDepth += newASDF.depth;
-			checkDepth();
-			currentDepth -= newASDF.depth;
-			return;
-		}
-
-		do {
-			currentDepth += newASDF.depth;
-			checkDepth();
-			launchRecursion(relevantIndex + newASDF.wordLocs.get(0));
-			currentDepth -= newASDF.depth;
-
-			newASDF.removeOldest();
-			if (relevantIndex > 20) {
-////Need to get to the point where whole sentence is not passed but only the correct key
-				System.out.println(fullDecrypt());
-			}
-		} while (!newASDF.wordLocs.isEmpty());
-
-		return;
-	}
-
 	private void recursiveThing(int index) {
-		/// starts with a blank each iteration adds one to array?
 
 		originalText = miniDecrypt();
 		launchRecursion(0);
@@ -1147,13 +1169,7 @@ public class VigenereCipher {
 		if (index >= keyLength || index > maxDepth)
 			return;
 
-		// System.out.println(recursiveList.toString());
-
-		// send to decrypt
-
-		// }
-
-		for (int i = 0; i < keyLength; i++) {
+		for (int i = 0; i < checkDepth; i++) {
 			currentDepth = 0;
 			maxDepth = 0;
 
@@ -1166,6 +1182,9 @@ public class VigenereCipher {
 
 	}
 
+	/**
+	 * removes spaces from text
+	 */
 	public void removeSpaces() {
 		cipheredText = new StringBuffer(cipheredText.toString().replace(" ", ""));
 		abridgedText.insert(0, cipheredText.substring(0, testLength));
@@ -1202,66 +1221,16 @@ public class VigenereCipher {
 		return alphaCount.toString();
 	}
 
-	public String Store() {
+	/**
+	 * finds how often each letter was used and stores them into alphaCount
+	 */
+	public void Store() {
 		alphaCount.clear();
 
 		for (int i = 0; i < cipheredText.length(); i++) {
 			char ch = cipheredText.charAt(i);
-			/// so pwetty, this code is
 			alphaCount.compute(ch, (k, v) -> v == null ? 1 : v + 1);
 		}
-		return (alphaCount.toString());
-	}
-
-	private String getCharForNumber(int i) {
-		return i >= 0 && i < 26 ? String.valueOf((char) (i + 65)) : null;
-	}
-
-	public static void main(String[] args) {
-
-		VigenereCipher vigen = new VigenereCipher();
-		int key = 10;
-		//// 74 is martinhairerhasmadeabreakthrough
-		// 87 is ohwhyshouldibe
-		/// 40 is everyyearthedirector NZQARIKQIWH
-		/// 42 is asforthequestionofdifficulty ZUEZNH
-
-		if (vigen.readAndStore("vigenere42.txt") == false)
-			return;
-		System.out.println();
-		vigen.implementTrie("words.txt");
-		vigen.implementTrie("names.txt");
-		vigen.checkOccurences(7);
-		key = vigen.kasiski(2);
-		System.out.println(key);
-		vigen.setKeyLength(key);
-		vigen.removeSpaces();
-		vigen.Store();
-
-		// System.out.println(vigen.showFrequency());
-		System.out.println(vigen.findIndexOfCoincidence());
-		// System.out.println(vigen.returnOccurences());
-
-		vigen.showDistances(3);
-		vigen.filter();
-
-		vigen.indivOccurence(key);
-		vigen.chiSquare();
-
-		long startTime = System.currentTimeMillis();
-		vigen.preRecursive();
-		long endTime = System.currentTimeMillis();
-		System.out.println("Total execution time: " + (endTime - startTime) + "ms");
-		// vigen.recursiveThing(0);
-
-		/*
-		 * 14 6 6 4 10 17 9 22 16 18
-		 */
-
-		System.out.println(vigen.decrypt());
-
-		//// Martin Hairer has made a breakthrough
-		//// correct key is NFFDJQIVPR
-
+		return;
 	}
 }

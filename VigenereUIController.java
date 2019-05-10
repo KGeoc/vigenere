@@ -1,5 +1,6 @@
-package decrypts;
+package vigenere;
 
+import decrypts.wordFolders;
 import javafx.beans.property.StringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -68,7 +69,7 @@ public class VigenereUIController {
 		vigenere.checkOccurences(7);
 		vigenere.removeSpaces();
 		vigenere.Store();
-		key=vigenere.kasiski();
+		key=vigenere.kasiski(7);
 		keyLength.setText(String.valueOf(key));
 	}
 

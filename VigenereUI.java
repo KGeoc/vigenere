@@ -1,4 +1,4 @@
-package decrypts;
+package vigenere;
 
 import java.io.IOException;
 
